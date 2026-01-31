@@ -11,6 +11,9 @@ const AiAssistant: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // 检查 API Key 状态
+  const isApiKeyConfigured = !!process.env.API_KEY && process.env.API_KEY !== '';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -20,6 +23,15 @@ const AiAssistant: React.FC = () => {
 
   const handleSend = async () => {
     if (!inputValue.trim() || isTyping) return;
+    
+    if (!isApiKeyConfigured) {
+      setMessages(prev => [...prev, 
+        { role: 'user', text: inputValue, timestamp: new Date() },
+        { role: 'model', text: '⚠️ 检测到 API Key 未配置或无效。请检查环境变量 VITE_API_KEY 是否设置正确，并确保已重新部署。', timestamp: new Date() }
+      ]);
+      setInputValue('');
+      return;
+    }
 
     const userMsg: Message = { role: 'user', text: inputValue, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
@@ -39,6 +51,8 @@ const AiAssistant: React.FC = () => {
         className="fixed right-4 bottom-24 w-12 h-12 bg-red-600 rounded-full shadow-lg shadow-red-600/30 flex items-center justify-center text-white z-40 animate-bounce transition-all hover:scale-110 active:scale-90"
       >
         <i className="fas fa-headset text-xl"></i>
+        {/* 状态小圆点 */}
+        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${isApiKeyConfigured ? 'bg-green-500' : 'bg-amber-500'}`}></div>
       </button>
 
       {isOpen && (
@@ -53,7 +67,12 @@ const AiAssistant: React.FC = () => {
                   <i className="fas fa-user-tie text-xl"></i>
                 </div>
                 <div>
-                  <h3 className="font-bold">家装管家小智</h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="font-bold">家装管家小智</h3>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${isApiKeyConfigured ? 'bg-green-500/20 text-green-200' : 'bg-amber-500/20 text-amber-200'}`}>
+                      {isApiKeyConfigured ? 'Online' : 'Key Missing'}
+                    </span>
+                  </div>
                   <p className="text-[10px] opacity-80">专业建材咨询 · 方案建议</p>
                 </div>
               </div>
@@ -94,7 +113,7 @@ const AiAssistant: React.FC = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="咨询主材、软装或工艺..."
+                  placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请先配置 API Key..."}
                   className="w-full bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>

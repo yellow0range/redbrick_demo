@@ -16,6 +16,9 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 检查 API Key 状态
+  const isApiKeyConfigured = !!process.env.API_KEY && process.env.API_KEY !== '';
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -31,6 +34,11 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
   const handleGenerate = async (p?: string) => {
     const finalPrompt = p || prompt;
     if (!finalPrompt.trim()) return;
+
+    if (!isApiKeyConfigured) {
+      setError("未检测到 API Key，请在环境变量中设置 VITE_API_KEY。");
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);
@@ -38,7 +46,7 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
       const imageUrl = await generateDesignImage(finalPrompt, referenceImage || undefined);
       setGeneratedImage(imageUrl);
     } catch (err) {
-      setError("AI 创作遇到了阻碍，请检查网络或 Key。");
+      setError("AI 创作遇到了阻碍，请确认您的 Key 是否有效且有图片生成权限。");
     } finally {
       setIsGenerating(false);
     }
@@ -55,7 +63,7 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
           <h1 className="font-black text-sm tracking-widest uppercase">AI Design Studio</h1>
           <p className="text-[8px] text-red-500 font-bold tracking-tighter">PREMIUM RENDER ENGINE</p>
         </div>
-        <button onClick={() => {setGeneratedImage(null); setReferenceImage(null); setPrompt('');}} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90">
+        <button onClick={() => {setGeneratedImage(null); setReferenceImage(null); setPrompt(''); setError(null);}} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90">
           <i className="fas fa-redo-alt text-xs"></i>
         </button>
       </div>
@@ -89,6 +97,12 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
                 <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center mx-auto mb-6">
                   <i className="fas fa-camera-retro text-2xl text-gray-600"></i>
                 </div>
+                {!isApiKeyConfigured && (
+                  <div className="mb-4 bg-amber-500/20 border border-amber-500/50 p-3 rounded-xl">
+                    <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Warning: API Key Missing</p>
+                    <p className="text-[9px] text-amber-200/70 mt-1">请先完成环境变量配置并重新部署</p>
+                  </div>
+                )}
                 <p className="text-sm font-bold text-gray-400">选择一张照片或直接描述</p>
                 <p className="text-[10px] text-gray-600 mt-2">支持毛坯房一键精装修</p>
               </div>
@@ -121,7 +135,7 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
             {PRESETS.map(p => (
               <button 
                 key={p} 
-                onClick={() => { setPrompt(prev => prev.includes('风格调整为') ? prev : `将此空间改造为: ${p}`); handleGenerate(`将此空间改造为: ${p}`); }}
+                onClick={() => { setPrompt(`将此空间改造为: ${p}`); handleGenerate(`将此空间改造为: ${p}`); }}
                 className="px-4 py-2 whitespace-nowrap rounded-xl bg-white/5 border border-white/5 text-[10px] font-bold hover:bg-red-600 hover:border-red-600 transition-all active:scale-95"
               >
                 {p}
@@ -141,11 +155,11 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
 
           <button 
             onClick={() => handleGenerate()}
-            disabled={isGenerating || !prompt.trim()}
+            disabled={isGenerating || !prompt.trim() || !isApiKeyConfigured}
             className="w-full py-5 bg-red-600 rounded-[1.5rem] font-black text-sm flex items-center justify-center space-x-3 shadow-2xl shadow-red-900/40 active:scale-[0.98] disabled:opacity-30 transition-all uppercase tracking-widest"
           >
             <i className="fas fa-sparkles"></i>
-            <span>{referenceImage ? '开始空间改造' : '生成 AI 方案'}</span>
+            <span>{!isApiKeyConfigured ? 'Waiting for API Key' : referenceImage ? '开始空间改造' : '生成 AI 方案'}</span>
           </button>
         </div>
 
@@ -153,12 +167,12 @@ const AiDesignStudio: React.FC<AiDesignStudioProps> = ({ onBack }) => {
           <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">AI Engine Specs</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-[9px] text-gray-400 font-bold uppercase">2.5 Flash Image Active</span>
+              <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isApiKeyConfigured ? 'bg-green-500' : 'bg-gray-700'}`}></div>
+              <span className="text-[9px] text-gray-400 font-bold uppercase">{isApiKeyConfigured ? '2.5 Flash Image Active' : 'Engine Offline'}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-              <span className="text-[9px] text-gray-400 font-bold uppercase">HD Render Enabled</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${isApiKeyConfigured ? 'bg-red-500' : 'bg-gray-700'}`}></div>
+              <span className="text-[9px] text-gray-400 font-bold uppercase">HD Render Ready</span>
             </div>
           </div>
         </div>
