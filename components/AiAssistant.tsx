@@ -12,9 +12,10 @@ const AiAssistant: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // 检查 API Key 状态
+  // 获取构建时注入的 API Key
   const apiKey = process.env.API_KEY;
-  const isApiKeyConfigured = !!apiKey && apiKey !== '' && apiKey !== '""' && apiKey !== 'undefined';
+  // 排除掉构建工具可能注入的占位符字符串
+  const isApiKeyConfigured = !!apiKey && apiKey !== '' && apiKey !== '""' && apiKey !== 'undefined' && apiKey !== 'null';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -30,7 +31,7 @@ const AiAssistant: React.FC = () => {
         { role: 'user', text: inputValue, timestamp: new Date() },
         { 
           role: 'model', 
-          text: '⚠️ 智能服务未激活 (Key Missing)\n\n请按以下步骤操作：\n1. 在 Vercel 设置中添加 VITE_API_KEY 变量\n2. 点击 Vercel 顶部的 "Redeploy" 按钮重新构建\n3. 确认 Key 的权限已在 Google Cloud 开启', 
+          text: '⚠️ 状态：由于未检测到有效的 API Key，我暂时无法回答您的问题。\n\n💡 修复方案：\n1. 请在 Vercel 项目设置中添加变量 VITE_API_KEY\n2. 变量保存后，点击 Vercel 顶部的 "Deployments" 菜单\n3. 找到最近的一次记录，点击右侧三个点选择 "Redeploy"（必须重新构建才能注入 Key）。', 
           timestamp: new Date() 
         }
       ]);
@@ -47,7 +48,7 @@ const AiAssistant: React.FC = () => {
       const response = await getGeminiResponse(inputValue);
       setMessages(prev => [...prev, { role: 'model', text: response, timestamp: new Date() }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: '❌ 连接 AI 服务超时，请稍后重试。', timestamp: new Date() }]);
+      setMessages(prev => [...prev, { role: 'model', text: '❌ 小智连接中断，请检查网络或 API Key 权限。', timestamp: new Date() }]);
     } finally {
       setIsTyping(false);
     }
@@ -92,7 +93,7 @@ const AiAssistant: React.FC = () => {
             <div ref={scrollRef} className="flex-grow p-4 overflow-y-auto space-y-4 bg-gray-50/50">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
+                  <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[13px] shadow-sm ${
                     msg.role === 'user' 
                       ? 'bg-red-600 text-white rounded-br-none' 
                       : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
@@ -115,20 +116,18 @@ const AiAssistant: React.FC = () => {
             </div>
 
             <div className="p-4 border-t bg-white flex items-center space-x-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
-              <div className="flex-grow relative">
-                <input 
-                  type="text" 
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请点击 Redeploy 注入 Key..."}
-                  className="w-full bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
-                />
-              </div>
+              <input 
+                type="text" 
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请先 Redeploy 以注入 Key..."}
+                className="flex-grow bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
               <button 
                 onClick={handleSend}
                 disabled={!inputValue.trim() || isTyping}
-                className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center disabled:opacity-40 active:scale-90 transition-all shadow-md"
+                className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center disabled:opacity-40"
               >
                 <i className="fas fa-paper-plane text-xs"></i>
               </button>
