@@ -15,6 +15,7 @@
             background-color: #F8F9FB;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -22,14 +23,6 @@
         .hide-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
-        }
-        @keyframes scroll-text {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-150%); }
-        }
-        .animate-scroll {
-            display: inline-block;
-            animation: scroll-text 15s linear infinite;
         }
         @keyframes fade-in-up {
             from { opacity: 0; transform: translateY(20px); }
@@ -57,18 +50,18 @@
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.4",
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react/": "https://esm.sh/react@^19.2.4/",
     "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "vite": "https://esm.sh/vite@^7.3.1"
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body class="bg-gray-50">
     <div id="root"></div>
-    <!-- 关键修复：添加入口文件引用 -->
+    <!-- Vite 入口脚本：Vite 会在构建阶段处理此文件并将其转换为浏览器可运行的 JS -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

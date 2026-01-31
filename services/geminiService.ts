@@ -6,8 +6,9 @@ import { GoogleGenAI } from "@google/genai";
  */
 
 const getAiClient = () => {
+  // 生产环境下由 vite.config.ts 注入
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
+  if (!apiKey || apiKey === '') {
     throw new Error("MISSING_API_KEY");
   }
   return new GoogleGenAI({ apiKey });
@@ -20,34 +21,45 @@ export const getGeminiResponse = async (userMessage: string) => {
       model: 'gemini-3-flash-preview',
       contents: userMessage,
       config: {
-        systemInstruction: `你是一个专业的家装管家。名字叫'小智'。
+        systemInstruction: `你是一个专业的家装管家，名字叫'小智'。
 擅长：1.装修建议 2.建材分析 3.避坑指南。请用亲切专业的口吻回答。`,
         tools: [{ googleSearch: {} }],
         temperature: 0.7,
       },
     });
-    return response.text || "抱歉，我现在有点走神。";
+
+    if (!response.text) {
+      return "小智现在无法生成内容，请尝试换个问题。";
+    }
+
+    return response.text;
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error Details:", error);
     
-    if (error.message === "MISSING_API_KEY") {
-      return "⚠️ 错误：未检测到 API Key。请在 Vercel 环境变量中配置 VITE_API_KEY 并重新部署。";
-    }
-    
-    // 处理网络或权限错误
     const errMsg = error.toString();
-    if (errMsg.includes("403")) {
-      return "🚫 权限错误 (403)：你的 API Key 无效，或者未开启 Gemini 3 访问权限。";
-    } else if (errMsg.includes("TypeError") || errMsg.includes("Failed to fetch")) {
-      return "🌐 网络错误：无法连接到 Google AI 服务器。如果你在国内，请开启代理工具后再试。";
+    
+    if (errMsg.includes("MISSING_API_KEY")) {
+      return "⚠️ 错误：环境变量中未配置 API Key。请在 Vercel 项目设置中添加 VITE_API_KEY。";
     }
     
-    return `遇到了一点技术波折 (${error.message || '未知错误'})，请稍后再试。`;
+    if (errMsg.includes("403")) {
+      return "🚫 访问拒绝 (403)：Key 可能无效，或者您没有为该项目开启 'Generative Language API'。请前往 Google Cloud 控制台检查。";
+    }
+    
+    if (errMsg.includes("400")) {
+      return "❌ 请求错误 (400)：通常是因为 API Key 格式错误或模型名称不支持。";
+    }
+
+    if (errMsg.includes("fetch") || errMsg.includes("NetworkError")) {
+      return "🌐 网络波动：无法连接到 AI 服务器。请检查您的网络代理设置。";
+    }
+    
+    return `遇到了一些技术挑战：${error.message || '未知错误'}`;
   }
 };
 
 /**
- * AI 图像生成与编辑服务
+ * AI 图像生成服务
  */
 export const generateDesignImage = async (prompt: string, base64Image?: string) => {
   try {
@@ -62,9 +74,9 @@ export const generateDesignImage = async (prompt: string, base64Image?: string) 
           mimeType: "image/jpeg"
         }
       });
-      parts.push({ text: `Modify this interior design based on: ${prompt}. Maintain the spatial structure but update materials, furniture, and lighting to high-end architectural photography quality.` });
+      parts.push({ text: `基于这张图片进行空间改造：${prompt}。保持结构，提升材质质感，风格为高端建筑摄影风格。` });
     } else {
-      parts.push({ text: `A professional high-quality interior design photo of: ${prompt}, photorealistic, 8k resolution, architectural photography style, trendy home decor.` });
+      parts.push({ text: `A professional interior design photo of: ${prompt}, photorealistic, high-end furniture, soft lighting.` });
     }
 
     const response = await ai.models.generateContent({
@@ -77,14 +89,14 @@ export const generateDesignImage = async (prompt: string, base64Image?: string) 
       }
     });
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
+    const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+    if (imagePart?.inlineData) {
+      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
     }
-    throw new Error("No image data returned");
+    
+    throw new Error("No image returned from AI");
   } catch (error: any) {
-    console.error("Image Generation Error:", error);
+    console.error("Image Gen Error:", error);
     throw error;
   }
 };
