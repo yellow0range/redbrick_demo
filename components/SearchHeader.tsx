@@ -1,7 +1,10 @@
-
 import React from 'react';
 
-const SearchHeader: React.FC = () => {
+interface SearchHeaderProps {
+  onAiClick?: () => void;
+}
+
+const SearchHeader: React.FC<SearchHeaderProps> = ({ onAiClick }) => {
   return (
     <div className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md px-4 py-3 flex items-center space-x-3 border-b border-gray-100">
       <div className="text-red-600 font-bold text-xl flex-shrink-0">
@@ -16,7 +19,10 @@ const SearchHeader: React.FC = () => {
         />
       </div>
       <div className="flex-shrink-0 flex items-center space-x-4 text-gray-600">
-        <i className="far fa-comment-dots text-lg"></i>
+        <button onClick={onAiClick} className="relative active:scale-90 transition-transform">
+          <i className="far fa-comment-dots text-lg"></i>
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+        </button>
       </div>
     </div>
   );

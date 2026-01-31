@@ -1,13 +1,15 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // 1. 加载当前目录下所有环境文件
-  const env = loadEnv(mode, process.cwd(), '');
+  // Fix: Property 'cwd' does not exist on type 'Process'. Use type assertion to access Node.js process methods in the Vite configuration environment.
+  const env = loadEnv(mode, (process as any).cwd(), '');
   
   // 2. 尝试从多个可能的位置提取 API Key
   // 优先级：loadEnv 捕获的 VITE_ 前缀 > 纯 API_KEY > 系统进程中的变量
-  const apiKey = env.VITE_API_KEY || env.API_KEY || process.env.VITE_API_KEY || process.env.API_KEY || "";
+  const apiKey = env.VITE_API_KEY || env.API_KEY || (process.env as any).VITE_API_KEY || (process.env as any).API_KEY || "";
   
   // 3. 在构建日志中输出状态（Vercel 构建时可见）
   if (apiKey && apiKey.length > 5) {

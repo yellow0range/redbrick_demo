@@ -1,258 +1,241 @@
-import React, { useState, useEffect } from 'react';
-import SearchHeader from './components/SearchHeader';
-import BannerCarousel from './components/BannerCarousel';
-import ProductCard from './components/ProductCard';
-import TabBar from './components/TabBar';
-import AiAssistant from './components/AiAssistant';
-import GuidePage from './components/GuidePage';
-import DetailPage from './components/DetailPage';
-import ContentDetailPage from './components/ContentDetailPage';
-import AiDesignStudio from './components/AiDesignStudio';
-import { PRODUCTS, ARTICLES, MAIN_NAV, ANNOUNCEMENTS } from './constants';
 
-const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('home');
-  const [currentPage, setCurrentPage] = useState<'home' | 'guide' | 'detail' | 'contentDetail' | 'studio'>('home');
-  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
-  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [selectedAnnIndex, setSelectedAnnIndex] = useState(0);
-  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
-  
-  // 用于从外部触发 AI 助手的开启
-  const [aiAssistantTrigger, setAiAssistantTrigger] = useState<{open: boolean, initialMsg?: string}>({open: false});
+import { defineComponent, ref, reactive, onMounted } from 'vue';
+import { GoogleGenAI } from "@google/genai";
 
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    if (tabId === 'content') setCurrentPage('guide');
-    else if (tabId === 'home') setCurrentPage('home');
-  };
+// 模拟数据
+const CATEGORIES = [
+  { id: 1, name: '装修指南', icon: 'fa-book' },
+  { id: 2, name: '建材评测', icon: 'fa-vial' },
+  { id: 3, name: '案例赏析', icon: 'fa-layer-group' },
+  { id: 4, name: '装修故事', icon: 'fa-home' },
+];
 
-  const navigateToContent = (id: string) => {
-    setSelectedContentId(id);
-    setCurrentPage('contentDetail');
-  };
+const PRODUCTS = [
+  { id: 1, name: '哑光防滑柔光大理石瓷砖 800x800', price: 88, sales: '5k+', img: 'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=400' },
+  { id: 2, name: '北欧简约全铜客厅吊灯 变色光', price: 1299, sales: '800', img: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400' },
+  { id: 3, name: '智能恒温淋浴花洒套装 黑色', price: 2199, sales: '300', img: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400' },
+  { id: 4, name: '全屋定制欧松板衣柜 环保等级ENF', price: 899, sales: '1k+', img: 'https://images.unsplash.com/photo-1611486212354-9174095f9c42?w=400' },
+];
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentAnnouncementIndex((prev) => (prev + 1) % ANNOUNCEMENTS.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+export default defineComponent({
+  setup() {
+    const activeTab = ref('home');
+    const isAiOpen = ref(false);
+    const messages = reactive([
+      { role: 'model', text: '您好！我是小智，正在为您规划装修方案吗？' }
+    ]);
+    const userInput = ref('');
+    const isTyping = ref(false);
 
-  const openAnnouncement = (index: number) => {
-    setSelectedAnnIndex(index);
-    setShowAnnouncementModal(true);
-  };
+    const switchTab = (tab) => {
+      activeTab.value = tab;
+    };
 
-  const renderContent = () => {
-    if (currentPage === 'studio') {
-      return <AiDesignStudio onBack={() => setCurrentPage('home')} />;
-    }
+    const callGemini = async () => {
+      if (!userInput.value.trim() || isTyping.value) return;
+      
+      const userText = userInput.value;
+      messages.push({ role: 'user', text: userText });
+      userInput.value = '';
+      isTyping.value = true;
 
-    if (currentPage === 'guide' || activeTab === 'content') {
-      return <GuidePage onBack={() => { setActiveTab('home'); setCurrentPage('home'); }} onArticleClick={navigateToContent} />;
-    }
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: userText,
+          config: {
+            systemInstruction: "你是一个专业的家装管家小智。回答亲切、专业，擅长建材避坑指南。"
+          }
+        });
+        messages.push({ role: 'model', text: response.text || "小智开小差了..." });
+      } catch (e) {
+        messages.push({ role: 'model', text: "连接 AI 失败，请检查 API Key 状态。" });
+      } finally {
+        isTyping.value = false;
+      }
+    };
 
-    if (currentPage === 'detail') {
-      return <DetailPage onBack={() => setCurrentPage('home')} />;
-    }
+    return () => (
+      <div class="min-h-screen bg-[#F8F9FB] pb-24 font-sans text-gray-900">
+        {/* Header */}
+        <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-4 py-3 flex items-center space-x-3">
+          <div class="text-red-600 font-black text-xl"><i class="fas fa-hammer"></i></div>
+          <div class="flex-grow relative">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm"></i>
+            <input 
+              type="text" 
+              placeholder="搜索装修主材、灯具..." 
+              class="w-full bg-gray-100 rounded-full py-2 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all"
+            />
+          </div>
+          <button onClick={() => isAiOpen.value = true} class="relative active:scale-90 transition-transform">
+            <i class="far fa-comment-dots text-lg text-gray-500"></i>
+            <span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
+        </header>
 
-    if (currentPage === 'contentDetail') {
-      return <ContentDetailPage id={selectedContentId || ''} onBack={() => setCurrentPage('guide')} />;
-    }
-
-    return (
-      <main className="max-w-md mx-auto">
-        <SearchHeader />
-        
-        {/* 装修进度卡片 */}
-        <div className="px-4 py-3 bg-white mt-1">
-          <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-2xl p-4 text-white shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-            <div className="flex justify-between items-start mb-3 relative z-10">
-              <div>
-                <h2 className="text-base font-bold">我的装修：幸福里1号院</h2>
-                <p className="text-[10px] opacity-80">当前进度：水电改造阶段</p>
-              </div>
-              <div 
-                onClick={() => setCurrentPage('detail')} 
-                className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-[10px] cursor-pointer active:scale-95 transition-all backdrop-blur-sm border border-white/20"
-              >
-                详细信息
-              </div>
-            </div>
-            <div className="flex items-center space-x-4 relative z-10">
-              <div className="flex-1">
-                <div className="h-2 bg-black/10 rounded-full overflow-hidden">
-                  <div className="w-[35%] h-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] rounded-full transition-all duration-1000"></div>
-                </div>
-                <div className="flex justify-between mt-1.5 text-[9px] font-medium">
-                  <span>已完成 35%</span>
-                  <span>预计竣工 11-20</span>
+        {/* Home Content */}
+        {activeTab.value === 'home' && (
+          <main class="animate-fade-in">
+            {/* Banner */}
+            <div class="px-4 mt-3">
+              <div class="h-40 rounded-3xl overflow-hidden shadow-sm relative group">
+                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800" class="w-full h-full object-cover" />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex flex-col justify-end p-4">
+                  <h3 class="text-white font-bold text-sm">双11家装狂欢：满3000减500</h3>
+                  <p class="text-white/80 text-[10px]">全国 500+ 城市配送安装</p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* AI 提问窗口入口 (新补充) */}
-        <div className="px-4 mt-4">
-          <div 
-            onClick={() => setAiAssistantTrigger({open: true})}
-            className="bg-white rounded-2xl p-4 border border-red-100 flex items-center space-x-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 flex-shrink-0 animate-pulse-soft">
-              <i className="fas fa-comment-dots text-lg"></i>
-            </div>
-            <div className="flex-grow">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">问问装修管家小智</h3>
-                <span className="text-[10px] text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded">在线答疑</span>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-0.5">“水路走顶还是走地好？” “预算怎么分？”</p>
-            </div>
-            <i className="fas fa-chevron-right text-gray-200 group-hover:text-red-300 transition-colors"></i>
-          </div>
-        </div>
-
-        {/* AI 设计生成快捷入口 */}
-        <div className="px-4 mt-3">
-          <div 
-            onClick={() => setCurrentPage('studio')}
-            className="bg-gray-900 rounded-2xl p-4 flex items-center justify-between border border-white/5 active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-gray-200"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white">
-                <i className="fas fa-wand-sparkles text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-white text-sm font-black">AI 灵感设计室</h3>
-                <p className="text-gray-500 text-[9px]">输入描述，AI 帮您画出装修蓝图</p>
-              </div>
-            </div>
-            <i className="fas fa-chevron-right text-gray-700 text-xs"></i>
-          </div>
-        </div>
-
-        {/* 公告栏 */}
-        <div className="px-4 py-2.5 bg-white flex items-center space-x-3 overflow-hidden border-b border-gray-50 mt-3">
-          <div className="text-red-600 bg-red-50 px-2 py-0.5 rounded text-[10px] font-extrabold italic tracking-tighter">HOT</div>
-          <div 
-            className="flex-grow overflow-hidden relative h-5 cursor-pointer"
-            onClick={() => openAnnouncement(currentAnnouncementIndex)}
-          >
-            {ANNOUNCEMENTS.map((ann, idx) => (
-              <div 
-                key={ann.id} 
-                className={`text-[11px] text-gray-600 absolute w-full transition-all duration-700 ease-in-out flex items-center ${
-                  idx === currentAnnouncementIndex ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'
-                }`}
-              >
-                <span className="truncate flex-grow">{ann.title}</span>
-                <i className="fas fa-chevron-right text-[8px] text-gray-300 ml-2"></i>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <BannerCarousel />
-
-        <div className="grid grid-cols-5 gap-2 px-2 py-6 bg-white mt-3 mx-4 rounded-3xl shadow-sm border border-gray-50/50">
-          {MAIN_NAV.map((item) => (
-            <div 
-              key={item.id} 
-              onClick={() => item.target === 'guide' && handleTabChange('content')} 
-              className="flex flex-col items-center space-y-2 active:scale-90 transition-transform group"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-gray-50 flex items-center justify-center text-red-600 group-hover:bg-red-50 transition-colors shadow-sm">
-                <i className={`fas ${item.icon} text-lg`}></i>
-              </div>
-              <span className="text-[10px] text-gray-700 font-bold tracking-tight">{item.name}</span>
-            </div>
-          ))}
-        </div>
-
-        <section className="mt-6 px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900 flex items-center">
-              <span className="w-1 h-4 bg-red-600 rounded-full mr-2"></span>
-              可能关心的内容
-            </h2>
-            <span className="text-[10px] text-gray-400">查看更多 <i className="fas fa-chevron-right ml-0.5"></i></span>
-          </div>
-          <div className="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
-            {ARTICLES.map((article) => (
-              <div 
-                key={article.id} 
-                onClick={() => navigateToContent(article.id.toString())}
-                className="flex-shrink-0 w-48 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-50 active:scale-95 transition-transform"
-              >
-                <img src={article.cover} className="w-full h-24 object-cover" />
-                <div className="p-2">
-                  <p className="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight h-7">{article.title}</p>
-                  <div className="mt-2 flex items-center text-[9px] text-gray-400">
-                    <i className="far fa-eye mr-1"></i> {article.views}阅读
+            {/* Nav Grid */}
+            <div class="grid grid-cols-4 gap-4 px-6 py-6 bg-white mt-4 mx-4 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+              {CATEGORIES.map(cat => (
+                <div key={cat.id} class="flex flex-col items-center space-y-2 active:scale-95 transition-transform cursor-pointer">
+                  <div class="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
+                    <i class={`fas ${cat.icon} text-lg`}></i>
                   </div>
+                  <span class="text-[10px] text-gray-600 font-bold">{cat.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Shortcut */}
+            <div class="px-4 mt-4">
+              <div 
+                onClick={() => isAiOpen.value = true}
+                class="bg-gradient-to-r from-red-600 to-red-500 p-[1px] rounded-2xl shadow-lg shadow-red-100"
+              >
+                <div class="bg-white rounded-[15px] p-4 flex items-center space-x-3 active:bg-gray-50 transition-colors">
+                  <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white shadow-md">
+                    <i class="fas fa-robot"></i>
+                  </div>
+                  <div class="flex-grow">
+                    <div class="text-xs font-black">管家小智</div>
+                    <div class="text-[10px] text-gray-400">“全屋定制用什么板材最环保？”</div>
+                  </div>
+                  <div class="bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg">咨询AI</div>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
 
-        {/* 精选列表 */}
-        <section className="mt-8 px-4 mb-10">
-          <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center">
-            <i className="fas fa-fire-alt text-red-600 mr-2"></i>
-            好物精选
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {PRODUCTS.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
-
-        {/* 公告弹窗 */}
-        {showAnnouncementModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 animate-fade-in" onClick={() => setShowAnnouncementModal(false)}>
-            <div className="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
-              <div className="bg-red-600 p-6 text-white relative">
-                <button onClick={() => setShowAnnouncementModal(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20"><i className="fas fa-times"></i></button>
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md"><i className="fas fa-bullhorn text-xl"></i></div>
-                <h3 className="text-lg font-black leading-tight">{ANNOUNCEMENTS[selectedAnnIndex].title}</h3>
+            {/* Products */}
+            <section class="mt-8 px-4">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-black flex items-center">
+                  <span class="w-1 h-4 bg-red-600 rounded-full mr-2"></span>好物精选
+                </h2>
+                <span class="text-[10px] text-gray-400">全部 <i class="fas fa-chevron-right ml-1"></i></span>
               </div>
-              <div className="p-6">
-                <div className="text-sm text-gray-600 leading-relaxed mb-8">{ANNOUNCEMENTS[selectedAnnIndex].content}</div>
-                <div className="border-t border-gray-100 pt-6">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">更多公告动态</h4>
-                  <div className="space-y-3">
-                    {ANNOUNCEMENTS.map((ann, idx) => (
-                      <div key={ann.id} onClick={() => setSelectedAnnIndex(idx)} className={`flex items-center space-x-3 p-2 rounded-xl transition-all cursor-pointer ${selectedAnnIndex === idx ? 'bg-red-50 text-red-600' : 'hover:bg-gray-50 text-gray-500'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${selectedAnnIndex === idx ? 'bg-red-600' : 'bg-gray-300'}`}></div>
-                        <span className="text-[11px] font-bold truncate flex-grow">{ann.title}</span>
-                        <i className="fas fa-arrow-right text-[8px] opacity-40"></i>
+              <div class="grid grid-cols-2 gap-3 pb-8">
+                {PRODUCTS.map(p => (
+                  <div key={p.id} class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm active:opacity-90 transition-opacity">
+                    <img src={p.img} class="w-full aspect-square object-cover" />
+                    <div class="p-3">
+                      <h4 class="text-[11px] font-bold text-gray-800 line-clamp-2 leading-tight mb-3 h-8">{p.name}</h4>
+                      <div class="flex items-end justify-between">
+                        <div>
+                          <span class="text-[8px] text-red-600 font-bold">¥</span>
+                          <span class="text-sm text-red-600 font-black">{p.price}</span>
+                        </div>
+                        <span class="text-[9px] text-gray-300">{p.sales}人付款</span>
                       </div>
-                    ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </main>
+        )}
+
+        {/* Footer Tabs */}
+        <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-8 py-3 flex justify-between items-center z-50 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+          {[
+            { id: 'home', label: '首页', icon: 'fa-house' },
+            { id: 'cart', label: '商城', icon: 'fa-shopping-bag' },
+            { id: 'my', label: '我', icon: 'fa-user' }
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => switchTab(tab.id)}
+              class={`flex flex-col items-center space-y-1 transition-all ${activeTab.value === tab.id ? 'text-red-600 scale-110' : 'text-gray-400'}`}
+            >
+              <i class={`fas ${tab.icon} text-lg`}></i>
+              <span class="text-[10px] font-bold">{tab.label}</span>
+              {activeTab.value === tab.id && <div class="w-1 h-1 bg-red-600 rounded-full"></div>}
+            </button>
+          ))}
+        </nav>
+
+        {/* Floating AI Bubble */}
+        <button 
+          onClick={() => isAiOpen.value = true}
+          class="fixed right-4 bottom-28 w-14 h-14 bg-red-600 rounded-full shadow-xl shadow-red-200 flex items-center justify-center text-white z-40 hover:scale-110 active:scale-90 transition-all animate-bounce"
+        >
+          <i class="fas fa-headset text-2xl"></i>
+        </button>
+
+        {/* AI Modal */}
+        {isAiOpen.value && (
+          <div class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end animate-fade-in" onClick={() => isAiOpen.value = false}>
+            <div 
+              class="w-full bg-white rounded-t-[2.5rem] h-[80vh] flex flex-col animate-slide-up"
+              onClick={e => e.stopPropagation()}
+            >
+              <div class="px-6 py-5 border-b flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white text-lg"><i class="fas fa-robot"></i></div>
+                  <div>
+                    <h3 class="font-black text-sm">家装管家小智</h3>
+                    <p class="text-[10px] text-green-500 font-bold uppercase tracking-wider">AI Studio Online</p>
                   </div>
                 </div>
+                <button onClick={() => isAiOpen.value = false} class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                  <i class="fas fa-times"></i>
+                </button>
               </div>
-              <div className="p-4 bg-gray-50 text-center">
-                <button onClick={() => setShowAnnouncementModal(false)} className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-100 active:scale-95 transition-transform">我知道了</button>
+
+              <div class="flex-grow p-4 overflow-y-auto space-y-4 bg-gray-50/50 hide-scrollbar">
+                {messages.map((m, i) => (
+                  <div key={i} class={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div class={`max-w-[85%] px-4 py-3 rounded-2xl text-[13px] shadow-sm leading-relaxed ${
+                      m.role === 'user' ? 'bg-red-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
+                    }`}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                {isTyping.value && (
+                  <div class="flex justify-start">
+                    <div class="bg-white px-4 py-3 rounded-2xl rounded-bl-none shadow-sm border border-gray-100">
+                      <div class="flex space-x-1 animate-pulse"><div class="w-1.5 h-1.5 bg-red-600 rounded-full"></div><div class="w-1.5 h-1.5 bg-red-600 rounded-full"></div><div class="w-1.5 h-1.5 bg-red-600 rounded-full"></div></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div class="p-4 bg-white border-t pb-[calc(env(safe-area-inset-bottom)+12px)]">
+                <div class="flex items-center space-x-3">
+                  <input 
+                    v-model={userInput.value}
+                    onKeypress={e => e.key === 'Enter' && callGemini()}
+                    placeholder="问问装修避坑指南..."
+                    class="flex-grow bg-gray-100 rounded-2xl py-3 px-4 text-sm focus:outline-none"
+                  />
+                  <button 
+                    onClick={callGemini}
+                    disabled={!userInput.value.trim()}
+                    class="w-11 h-11 bg-red-600 text-white rounded-2xl flex items-center justify-center disabled:opacity-50"
+                  >
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-      </main>
+      </div>
     );
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F8F9FB] pb-24">
-      {renderContent()}
-      <AiAssistant externalOpenTrigger={aiAssistantTrigger} onExternalClose={() => setAiAssistantTrigger({open: false})} />
-      <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
-    </div>
-  );
-};
-
-export default App;
+  }
+});
