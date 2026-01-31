@@ -39,19 +39,19 @@ export const getGeminiResponse = async (userMessage: string) => {
     const errMsg = error.toString();
     
     if (errMsg.includes("MISSING_API_KEY")) {
-      return "⚠️ 错误：环境变量中未配置 API Key。请在 Vercel 项目设置中添加 VITE_API_KEY。";
+      return "⚠️ 错误：未检测到有效 API Key。请在 Vercel 环境变量中添加 VITE_API_KEY。";
     }
     
     if (errMsg.includes("403")) {
-      return "🚫 访问拒绝 (403)：Key 可能无效，或者您没有为该项目开启 'Generative Language API'。请前往 Google Cloud 控制台检查。";
+      return "🚫 权限错误 (403)：请检查您的 API Key 是否有效，并确保已在 Google Cloud 控制台开启 'Generative Language API'。";
     }
     
     if (errMsg.includes("400")) {
-      return "❌ 请求错误 (400)：通常是因为 API Key 格式错误或模型名称不支持。";
+      return "❌ 请求错误 (400)：通常是因为 API Key 格式错误或请求参数不受支持。";
     }
 
     if (errMsg.includes("fetch") || errMsg.includes("NetworkError")) {
-      return "🌐 网络波动：无法连接到 AI 服务器。请检查您的网络代理设置。";
+      return "🌐 网络波动：无法连接到 AI 服务器。";
     }
     
     return `遇到了一些技术挑战：${error.message || '未知错误'}`;
@@ -89,12 +89,21 @@ export const generateDesignImage = async (prompt: string, base64Image?: string) 
       }
     });
 
-    const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-    if (imagePart?.inlineData) {
-      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    // 严谨的类型检查，防止 TS2532 错误
+    const candidates = response.candidates;
+    if (candidates && candidates.length > 0) {
+      const firstCandidate = candidates[0];
+      const content = firstCandidate.content;
+      if (content && content.parts) {
+        const partsArray = content.parts;
+        const imagePart = partsArray.find(p => p.inlineData);
+        if (imagePart && imagePart.inlineData) {
+          return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+        }
+      }
     }
     
-    throw new Error("No image returned from AI");
+    throw new Error("AI 未能成功生成图片，请重试。");
   } catch (error: any) {
     console.error("Image Gen Error:", error);
     throw error;
