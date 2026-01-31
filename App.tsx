@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import SearchHeader from './components/SearchHeader';
 import BannerCarousel from './components/BannerCarousel';
@@ -18,6 +17,9 @@ const App: React.FC = () => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [selectedAnnIndex, setSelectedAnnIndex] = useState(0);
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
+  
+  // 用于从外部触发 AI 助手的开启
+  const [aiAssistantTrigger, setAiAssistantTrigger] = useState<{open: boolean, initialMsg?: string}>({open: false});
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -93,8 +95,28 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* AI 设计生成快捷入口 */}
+        {/* AI 提问窗口入口 (新补充) */}
         <div className="px-4 mt-4">
+          <div 
+            onClick={() => setAiAssistantTrigger({open: true})}
+            className="bg-white rounded-2xl p-4 border border-red-100 flex items-center space-x-3 shadow-sm active:scale-[0.98] transition-all cursor-pointer group"
+          >
+            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 flex-shrink-0 animate-pulse-soft">
+              <i className="fas fa-comment-dots text-lg"></i>
+            </div>
+            <div className="flex-grow">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-800">问问装修管家小智</h3>
+                <span className="text-[10px] text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded">在线答疑</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-0.5">“水路走顶还是走地好？” “预算怎么分？”</p>
+            </div>
+            <i className="fas fa-chevron-right text-gray-200 group-hover:text-red-300 transition-colors"></i>
+          </div>
+        </div>
+
+        {/* AI 设计生成快捷入口 */}
+        <div className="px-4 mt-3">
           <div 
             onClick={() => setCurrentPage('studio')}
             className="bg-gray-900 rounded-2xl p-4 flex items-center justify-between border border-white/5 active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-gray-200"
@@ -177,39 +199,6 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 拼团聚惠 */}
-        <section className="mt-6 px-4">
-          <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <div className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-black italic">拼团聚惠</div>
-                <span className="text-xs font-bold text-red-800">全屋定制 2人起拼</span>
-              </div>
-              <div className="flex space-x-1">
-                <div className="bg-white px-1 rounded text-[10px] text-red-600 font-bold border border-red-200">23</div>
-                <span className="text-[10px] text-red-400">:</span>
-                <div className="bg-white px-1 rounded text-[10px] text-red-600 font-bold border border-red-200">59</div>
-                <span className="text-[10px] text-red-400">:</span>
-                <div className="bg-white px-1 rounded text-[10px] text-red-600 font-bold border border-red-200">54</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {PRODUCTS.filter(p => p.tag === '拼团' || p.id === '1').slice(0, 2).map(product => (
-                <div key={product.id} className="bg-white rounded-xl p-2 flex space-x-2 shadow-sm border border-red-50">
-                  <img src={product.image} className="w-16 h-16 rounded-lg object-cover" />
-                  <div className="flex flex-col justify-between overflow-hidden">
-                    <p className="text-[10px] font-bold text-gray-800 truncate">{product.name}</p>
-                    <div>
-                      <span className="text-xs font-black text-red-600">¥{product.price}</span>
-                      <p className="text-[8px] text-gray-400 line-through">¥{product.originalPrice || (product.price + 50)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* 精选列表 */}
         <section className="mt-8 px-4 mb-10">
           <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center">
@@ -260,7 +249,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FB] pb-24">
       {renderContent()}
-      <AiAssistant />
+      <AiAssistant externalOpenTrigger={aiAssistantTrigger} onExternalClose={() => setAiAssistantTrigger({open: false})} />
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );

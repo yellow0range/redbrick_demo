@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GeminiShop - 家居建材馆</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,34 +16,26 @@
             padding: 0;
             overflow-x: hidden;
         }
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         @keyframes fade-in-up {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in-up {
-            animation: fade-in-up 0.5s ease-out forwards;
-        }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+        
         @keyframes slide-up {
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
-        .animate-slide-up {
-            animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-        @keyframes fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-fade-in {
-            animation: fade-in 0.3s ease-out forwards;
-        }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
     </style>
 <script type="importmap">
 {
@@ -61,7 +52,6 @@
 </head>
 <body class="bg-gray-50">
     <div id="root"></div>
-    <!-- Vite 入口脚本：Vite 会处理所有 import 并自动注入环境变量 -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
