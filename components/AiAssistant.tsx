@@ -12,9 +12,9 @@ const AiAssistant: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // 检查 API Key 状态：不仅检查是否存在，还检查是否为有效的字符串（防止 'undefined' 字符串注入）
+  // 检查 API Key 状态
   const apiKey = process.env.API_KEY;
-  const isApiKeyConfigured = !!apiKey && apiKey !== '' && apiKey !== '""';
+  const isApiKeyConfigured = !!apiKey && apiKey !== '' && apiKey !== '""' && apiKey !== 'undefined';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -30,7 +30,7 @@ const AiAssistant: React.FC = () => {
         { role: 'user', text: inputValue, timestamp: new Date() },
         { 
           role: 'model', 
-          text: '⚠️ 配置诊断：前端未检测到 API Key。\n\n可能原因：\n1. Vercel 环境变量名请使用 VITE_API_KEY\n2. 修改变量后必须在 Vercel 点击 "Redeploy" 重新构建，刷新页面是无效的。\n3. 当前构建环境：' + (import.meta.env.MODE), 
+          text: '⚠️ 智能服务未激活 (Key Missing)\n\n请按以下步骤操作：\n1. 在 Vercel 设置中添加 VITE_API_KEY 变量\n2. 点击 Vercel 顶部的 "Redeploy" 按钮重新构建\n3. 确认 Key 的权限已在 Google Cloud 开启', 
           timestamp: new Date() 
         }
       ]);
@@ -47,7 +47,7 @@ const AiAssistant: React.FC = () => {
       const response = await getGeminiResponse(inputValue);
       setMessages(prev => [...prev, { role: 'model', text: response, timestamp: new Date() }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: '❌ 服务调用失败，请检查网络或 Key 权限。', timestamp: new Date() }]);
+      setMessages(prev => [...prev, { role: 'model', text: '❌ 连接 AI 服务超时，请稍后重试。', timestamp: new Date() }]);
     } finally {
       setIsTyping(false);
     }
@@ -60,7 +60,6 @@ const AiAssistant: React.FC = () => {
         className="fixed right-4 bottom-24 w-12 h-12 bg-red-600 rounded-full shadow-lg shadow-red-600/30 flex items-center justify-center text-white z-40 animate-bounce transition-all hover:scale-110 active:scale-90"
       >
         <i className="fas fa-headset text-xl"></i>
-        {/* 状态小圆点：配置成功显示绿色，失败显示橙色 */}
         <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white shadow-sm ${isApiKeyConfigured ? 'bg-green-500' : 'bg-amber-500'}`}></div>
       </button>
 
@@ -79,7 +78,7 @@ const AiAssistant: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <h3 className="font-bold text-sm">家装管家小智</h3>
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${isApiKeyConfigured ? 'bg-green-500 text-white' : 'bg-amber-400 text-amber-900'}`}>
-                      {isApiKeyConfigured ? 'Online' : 'Key Missing'}
+                      {isApiKeyConfigured ? 'Online' : 'Setup Required'}
                     </span>
                   </div>
                   <p className="text-[10px] opacity-80">专业建材咨询 · 方案建议</p>
@@ -122,7 +121,7 @@ const AiAssistant: React.FC = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请先配置 API Key..."}
+                  placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请点击 Redeploy 注入 Key..."}
                   className="w-full bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
                 />
               </div>
