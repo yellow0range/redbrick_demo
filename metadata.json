@@ -1,0 +1,8 @@
+{
+  "name": "GeminiShop - AI Powered Mini Program",
+  "description": "A high-performance, mobile-first e-commerce home page inspired by WeChat Mini Programs, featuring an integrated Gemini AI shopping assistant for personalized recommendations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
