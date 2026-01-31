@@ -12,8 +12,9 @@ const AiAssistant: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // 检查 API Key 状态
-  const isApiKeyConfigured = !!process.env.API_KEY && process.env.API_KEY !== '';
+  // 检查 API Key 状态：不仅检查是否存在，还检查是否为有效的字符串（防止 'undefined' 字符串注入）
+  const apiKey = process.env.API_KEY;
+  const isApiKeyConfigured = !!apiKey && apiKey !== '' && apiKey !== '""';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -27,7 +28,11 @@ const AiAssistant: React.FC = () => {
     if (!isApiKeyConfigured) {
       setMessages(prev => [...prev, 
         { role: 'user', text: inputValue, timestamp: new Date() },
-        { role: 'model', text: '⚠️ 检测到 API Key 未配置或无效。请检查环境变量 VITE_API_KEY 是否设置正确，并确保已重新部署。', timestamp: new Date() }
+        { 
+          role: 'model', 
+          text: '⚠️ 配置诊断：前端未检测到 API Key。\n\n可能原因：\n1. Vercel 环境变量名请使用 VITE_API_KEY\n2. 修改变量后必须在 Vercel 点击 "Redeploy" 重新构建，刷新页面是无效的。\n3. 当前构建环境：' + (import.meta.env.MODE), 
+          timestamp: new Date() 
+        }
       ]);
       setInputValue('');
       return;
@@ -38,10 +43,14 @@ const AiAssistant: React.FC = () => {
     setInputValue('');
     setIsTyping(true);
 
-    const response = await getGeminiResponse(inputValue);
-    
-    setMessages(prev => [...prev, { role: 'model', text: response, timestamp: new Date() }]);
-    setIsTyping(false);
+    try {
+      const response = await getGeminiResponse(inputValue);
+      setMessages(prev => [...prev, { role: 'model', text: response, timestamp: new Date() }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'model', text: '❌ 服务调用失败，请检查网络或 Key 权限。', timestamp: new Date() }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -51,8 +60,8 @@ const AiAssistant: React.FC = () => {
         className="fixed right-4 bottom-24 w-12 h-12 bg-red-600 rounded-full shadow-lg shadow-red-600/30 flex items-center justify-center text-white z-40 animate-bounce transition-all hover:scale-110 active:scale-90"
       >
         <i className="fas fa-headset text-xl"></i>
-        {/* 状态小圆点 */}
-        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${isApiKeyConfigured ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+        {/* 状态小圆点：配置成功显示绿色，失败显示橙色 */}
+        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white shadow-sm ${isApiKeyConfigured ? 'bg-green-500' : 'bg-amber-500'}`}></div>
       </button>
 
       {isOpen && (
@@ -68,8 +77,8 @@ const AiAssistant: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h3 className="font-bold">家装管家小智</h3>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${isApiKeyConfigured ? 'bg-green-500/20 text-green-200' : 'bg-amber-500/20 text-amber-200'}`}>
+                    <h3 className="font-bold text-sm">家装管家小智</h3>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${isApiKeyConfigured ? 'bg-green-500 text-white' : 'bg-amber-400 text-amber-900'}`}>
                       {isApiKeyConfigured ? 'Online' : 'Key Missing'}
                     </span>
                   </div>
@@ -77,19 +86,19 @@ const AiAssistant: React.FC = () => {
                 </div>
               </div>
               <button onClick={() => setIsOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/10">
-                <i className="fas fa-times"></i>
+                <i className="fas fa-times text-xs"></i>
               </button>
             </div>
 
             <div ref={scrollRef} className="flex-grow p-4 overflow-y-auto space-y-4 bg-gray-50/50">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${
+                  <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
                     msg.role === 'user' 
                       ? 'bg-red-600 text-white rounded-br-none' 
-                      : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-none'
+                      : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
                   }`}>
-                    {msg.text}
+                    {msg.text.split('\n').map((line, i) => <div key={i}>{line}</div>)}
                   </div>
                 </div>
               ))}
@@ -97,9 +106,9 @@ const AiAssistant: React.FC = () => {
                 <div className="flex justify-start">
                   <div className="bg-white px-4 py-2 rounded-2xl rounded-bl-none shadow-sm border border-gray-100">
                     <div className="flex space-x-1">
-                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                      <div className="w-1.5 h-1.5 bg-red-600/30 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-red-600/60 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                     </div>
                   </div>
                 </div>
@@ -114,15 +123,15 @@ const AiAssistant: React.FC = () => {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                   placeholder={isApiKeyConfigured ? "咨询主材、软装或工艺..." : "请先配置 API Key..."}
-                  className="w-full bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                  className="w-full bg-gray-100 rounded-full py-2.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
                 />
               </div>
               <button 
                 onClick={handleSend}
                 disabled={!inputValue.trim() || isTyping}
-                className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
+                className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center disabled:opacity-40 active:scale-90 transition-all shadow-md"
               >
-                <i className="fas fa-paper-plane text-sm"></i>
+                <i className="fas fa-paper-plane text-xs"></i>
               </button>
             </div>
           </div>
